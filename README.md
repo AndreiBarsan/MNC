@@ -4,6 +4,20 @@ By Jifeng Dai, Kaiming He, Jian Sun
 
 This python version is re-implemented by [Haozhi Qi](https://github.com/Oh233) when he was an intern at Microsoft Research.
 
+
+### Fork Information
+
+This fork of the [original repository](https://github.com/daijifeng001/MNC)
+contains a few small improvements in the demo script, allowing it to be used to
+batch process data in a particular folder.
+
+It also comes with an [associated install script](https://github.com/AndreiBarsan/caffe-setup)
+which can be used to set this code up on a machine, without requiring root
+privileged. The script is tailored for users of ETH Zurich's Euryale
+mini-cluster (using slurm and Linux modules), but it can easily be tweaked to
+work on arbitrary systems.
+
+
 ### Introduction
 
 MNC is an instance-aware semantic segmentation system based on deep convolutional networks, which won the first place in COCO segmentation challenge 2015, and test at a fraction of a second per image. We decompose the task of instance-aware semantic segmentation into related sub-tasks, which are solved by multi-task network cascades (MNC) with shared features. The entire MNC network is trained end-to-end with error gradients across cascaded stages.
