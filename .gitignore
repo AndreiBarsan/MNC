@@ -32,3 +32,6 @@
 *.jpg
 *~
 .idea
+
+# Downloaded model weights
+data/mnc_model/

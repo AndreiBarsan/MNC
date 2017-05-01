@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # --------------------------------------------------------
 # Multitask Network Cascade
@@ -6,6 +6,10 @@
 # Copyright (c) 2016, Haozhi Qi
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
+
+# Make sure plotting works without X.
+import matplotlib as mpl
+mpl.use('Agg')
 
 # Standard module
 import os
@@ -20,6 +24,7 @@ from mnc_config import cfg
 from transform.bbox_transform import clip_boxes
 from utils.blob import prep_im_for_blob, im_list_to_blob
 from transform.mask_transform import gpu_mask_voting
+
 import matplotlib.pyplot as plt
 from utils.vis_seg import _convert_pred_to_image, _get_voc_color_map
 from PIL import Image
@@ -133,12 +138,19 @@ if __name__ == '__main__':
     for i in xrange(2):
         _, _, _ = im_detect(im, net)
 
-    im_names = ['2008_000533.jpg', '2008_000910.jpg', '2008_001602.jpg',
-                '2008_001717.jpg', '2008_008093.jpg']
+    # TODO(andrei): Command line argument.
     demo_dir = './data/demo'
-    for im_name in im_names:
+    # demo_dir = './data/kitti'
+    demo_result_dir = os.path.join(demo_dir, 'results')
+    if not os.path.exists(demo_result_dir):
+        os.mkdir(demo_result_dir)
+
+    for im_name in os.listdir(demo_dir):
+        if im_name == 'results':
+            continue
+
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-        print 'Demo for data/demo/{}'.format(im_name)
+        print 'Demo for {}/{}'.format(demo_dir, im_name)
         gt_image = os.path.join(demo_dir, im_name)
         im = cv2.imread(gt_image)
         start = time.time()
@@ -154,7 +166,7 @@ if __name__ == '__main__':
         
         inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
         color_map = _get_voc_color_map()
-        target_cls_file = os.path.join(demo_dir, 'cls_' + im_name)
+        target_cls_file = os.path.join(demo_result_dir, 'cls_' + im_name)
         cls_out_img = np.zeros((img_height, img_width, 3))
         for i in xrange(img_height):
             for j in xrange(img_width):
@@ -166,12 +178,13 @@ if __name__ == '__main__':
         background = background.convert('RGBA')
         mask = mask.convert('RGBA')
         superimpose_image = Image.blend(background, mask, 0.8)
-        superimpose_name = os.path.join(demo_dir, 'final_' + im_name)
+        superimpose_name = os.path.join(demo_result_dir, 'final_' + im_name)
         superimpose_image.save(superimpose_name, 'JPEG')
         im = cv2.imread(superimpose_name)
 
         im = im[:, :, (2, 1, 0)]
         fig, ax = plt.subplots(figsize=(12, 12))
+
         ax.imshow(im, aspect='equal')
         classes = pred_dict['cls_name']
         for i in xrange(len(classes)):
@@ -182,10 +195,11 @@ if __name__ == '__main__':
                 '{:s} {:.4f}'.format(CLASSES[cls_ind], score),
                 bbox=dict(facecolor='blue', alpha=0.5),
                 fontsize=14, color='white')
+
         plt.axis('off')
         plt.tight_layout()
         plt.draw()
+        fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.png'))
 
-        fig.savefig(os.path.join(demo_dir, im_name[:-4]+'.png'))
         os.remove(superimpose_name)
         os.remove(target_cls_file)
