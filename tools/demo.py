@@ -8,8 +8,8 @@
 # --------------------------------------------------------
 
 # Make sure plotting works without X.
-import matplotlib as mpl
-mpl.use('Agg')
+# import matplotlib as mpl
+# mpl.use('Agg')
 
 # Standard module
 import os
@@ -51,6 +51,13 @@ def parse_args():
     parser.add_argument('--net', dest='caffemodel',
                         help='model to test',
                         default='./data/mnc_model/mnc_model.caffemodel.h5', type=str)
+    parser.add_argument('--input', dest='input',
+                        help="Directory containing the input images.",
+                        default='./data/demo', type=str)
+    parser.add_argument('--output', dest='output',
+                        help="Directory where the output images should be "
+                        "placed. Will be created if it does not exists.",
+                        default='./data/demo/output', type=str)
 
     args = parser.parse_args()
     return args
@@ -138,19 +145,16 @@ if __name__ == '__main__':
     for i in xrange(2):
         _, _, _ = im_detect(im, net)
 
-    # TODO(andrei): Command line argument.
-    demo_dir = './data/demo'
-    # demo_dir = './data/kitti'
-    demo_result_dir = os.path.join(demo_dir, 'results')
+    demo_dir = args.input
+    demo_result_dir = args.output
     if not os.path.exists(demo_result_dir):
         os.mkdir(demo_result_dir)
 
     for im_name in os.listdir(demo_dir):
-        if im_name == 'results':
+        if im_name == 'output' or im_name == 'results':
             continue
 
-        print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-        print 'Demo for {}/{}'.format(demo_dir, im_name)
+        print 'Processing {}/{}'.format(demo_dir, im_name)
         gt_image = os.path.join(demo_dir, im_name)
         im = cv2.imread(gt_image)
         start = time.time()
@@ -163,7 +167,11 @@ if __name__ == '__main__':
 
         img_width = im.shape[1]
         img_height = im.shape[0]
-        
+
+        masks = pred_dict['masks']
+        print(len(masks))
+        print(masks[0].shape)
+
         inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
         color_map = _get_voc_color_map()
         target_cls_file = os.path.join(demo_result_dir, 'cls_' + im_name)
@@ -172,7 +180,7 @@ if __name__ == '__main__':
             for j in xrange(img_width):
                 cls_out_img[i][j] = color_map[cls_img[i][j]][::-1]
         cv2.imwrite(target_cls_file, cls_out_img)
-        
+
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
         background = background.convert('RGBA')
@@ -183,23 +191,32 @@ if __name__ == '__main__':
         im = cv2.imread(superimpose_name)
 
         im = im[:, :, (2, 1, 0)]
-        fig, ax = plt.subplots(figsize=(12, 12))
 
-        ax.imshow(im, aspect='equal')
+        # A few tweaks to make our resulting plots as tight as possible.
+        fig = plt.figure()
+        dpi = fig.get_dpi()
+        fig.set_size_inches(img_width / dpi, img_height / dpi)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+
+        ax.imshow(im)
         classes = pred_dict['cls_name']
         for i in xrange(len(classes)):
             score = pred_dict['boxes'][i][-1]
             bbox = pred_dict['boxes'][i][:4]
+            print "Bounding box:", bbox
             cls_ind = classes[i] - 1
             ax.text(bbox[0], bbox[1] - 8,
                 '{:s} {:.4f}'.format(CLASSES[cls_ind], score),
                 bbox=dict(facecolor='blue', alpha=0.5),
                 fontsize=14, color='white')
 
-        plt.axis('off')
-        plt.tight_layout()
+        # plt.axis('off')
+        # plt.tight_layout()
         plt.draw()
+        plt.show()
         fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.png'))
 
-        os.remove(superimpose_name)
-        os.remove(target_cls_file)
+        # os.remove(superimpose_name)
+        # os.remove(target_cls_file)
