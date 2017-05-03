@@ -184,32 +184,32 @@ if __name__ == '__main__':
                 cls_out_img[i][j] = color_map[cls_img[i][j]][::-1]
         cv2.imwrite(target_cls_file, cls_out_img)
 
-        # This section just plots some things for demonstration purposes.
-        print("Getting masks returned by 'im_detect'...")
-        print(len(masks))
-        print(masks[0].shape)
-        pmasks = pred_dict['masks']
-        if len(pmasks) > 0:
-            print("Getting processed masks:")
-            print(len(pmasks))
-            print(pmasks[0].shape)
-            plt.subplot(2, 2, 1)
-            plt.imshow(pmasks[0])
+        if args.interactive:
+            # This section just plots some things for demonstration purposes.
+            print("Getting masks returned by 'im_detect'...")
+            print(len(masks))
+            print(masks[0].shape)
+            pmasks = pred_dict['masks']
+            if len(pmasks) > 0:
+                print("Getting processed masks:")
+                print(len(pmasks))
+                print(pmasks[0].shape)
+                plt.subplot(2, 2, 1)
+                plt.imshow(pmasks[0])
 
-            plt.subplot(2, 2, 2)
-            plt.imshow(pmasks[0] > 0.5)
+                plt.subplot(2, 2, 2)
+                plt.imshow(pmasks[0] > 0.5)
 
-            plt.subplot(2, 2, 3)
-            m0 = pmasks[0]
-            box = pred_dict['boxes'][0].astype(int)
-            m0_res = cv2.resize(m0.astype(np.float32), (box[2] - box[0] + 1, box[3] - box[1] + 1))
-            plt.imshow(m0_res)
+                plt.subplot(2, 2, 3)
+                m0 = pmasks[0]
+                box = pred_dict['boxes'][0].astype(int)
+                m0_res = cv2.resize(m0.astype(np.float32), (box[2] - box[0] + 1, box[3] - box[1] + 1))
+                plt.imshow(m0_res)
 
-            plt.subplot(2, 2, 4)
-            plt.imshow(m0_res > cfg.BINARIZE_THRESH)
+                plt.subplot(2, 2, 4)
+                plt.imshow(m0_res > cfg.BINARIZE_THRESH)
 
-            plt.show()
-
+                plt.show()
 
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
