@@ -9,20 +9,21 @@
 
 from __future__ import print_function
 
+# TODO(andrei): Rename this to 'batch_process' or something.
 # TODO(andrei): Is there a way to configure this automatically using a command
 # line argument or something?
 # Make sure plotting works without X.
 import matplotlib as mpl
 mpl.use('Agg')
 
-# Standard module
+# Standard modules
 import os
 import argparse
 import time
 import cv2
 import numpy as np
 
-# User-defined module
+# User-defined modules
 import _init_paths
 import caffe
 from mnc_config import cfg
@@ -66,6 +67,22 @@ def parse_args():
                         help="Directory where the output images should be "
                         "placed. Will be created if it does not exists.",
                         default='./data/demo/output', type=str)
+
+    # Support doing lower-resolution segmentation for performance reasons.
+    parser.add_argument('--inference-width', dest='inference_width',
+                        help="Width to which ALL input images are resized "
+                        "before being fed into the network. The output "
+                        "segmentation is then resized back to the original "
+                        "dimensions. The main goal is to improve inference "
+                        "speed, at the cost of operating on a lower-resolution "
+                        "image. WARNING: Expects all input images to have the "
+                        "same size. May cause undesired artifacts if the input "
+                        "images have different sizes. Set to '-1' to disable "
+                        "resizing.",
+                        default=-1, type=int)
+    parser.add_argument('--inference-height', dest='inference_height',
+                        help="Please see '--inference-width'.",
+                        default=-1, type=int)
 
     args = parser.parse_args()
     return args
@@ -160,6 +177,15 @@ if __name__ == '__main__':
         os.mkdir(demo_result_dir)
 
     fig = plt.figure()
+    do_resize = (args.inference_width == -1 or args.inference_height == -1)
+    if do_resize:
+        print("Will NOT perform resizing of frames prior to feeding them into "
+              "the NN.")
+    else:
+        print("Will resize input images to {}x{} before feeding them into the "
+              "NN, and then resize the segmentation result to the original "
+              "dimensions.")
+
     for im_name in os.listdir(demo_dir):
         if im_name == 'output' or im_name == 'results':
             continue
@@ -167,13 +193,21 @@ if __name__ == '__main__':
         print('Processing {}/{}'.format(demo_dir, im_name))
         gt_image = os.path.join(demo_dir, im_name)
         im = cv2.imread(gt_image)
+
+        if do_resize:
+            net_input = cv2.resize(im, (args.inference_width, args.inference_height))
+        else:
+            net_input = im
+
         start = time.time()
-        boxes, masks, seg_scores = im_detect(im, net)
+        boxes, masks, seg_scores = im_detect(net_input, net)
         end = time.time()
         print('forward time %f' % (end-start))
         result_mask, result_box = gpu_mask_voting(masks, boxes, seg_scores, len(CLASSES) + 1,
                                                   100, im.shape[1], im.shape[0])
         pred_dict = get_vis_dict(result_box, result_mask, 'data/demo/' + im_name, CLASSES)
+
+        # TODO(andrei): If resizing image, blow the result back up.
 
         img_width = im.shape[1]
         img_height = im.shape[0]
