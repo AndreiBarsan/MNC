@@ -7,9 +7,13 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 
+from __future__ import print_function
+
+# TODO(andrei): Is there a way to configure this automatically using a command
+# line argument or something?
 # Make sure plotting works without X.
-# import matplotlib as mpl
-# mpl.use('Agg')
+import matplotlib as mpl
+mpl.use('Agg')
 
 # Standard module
 import os
@@ -17,6 +21,7 @@ import argparse
 import time
 import cv2
 import numpy as np
+
 # User-defined module
 import _init_paths
 import caffe
@@ -45,6 +50,9 @@ def parse_args():
     parser.add_argument('--cpu', dest='cpu_mode',
                         help='Use CPU mode (overrides --gpu)',
                         action='store_true')
+    parser.add_argument('--interactive', dest='interactive', default=False,
+                        action='store_true',
+                        help="Whether to show the results to the user as they're created.")
     parser.add_argument('--def', dest='prototxt',
                         help='prototxt file defining the network',
                         default='./models/VGG16/mnc_5stage/test.prototxt', type=str)
@@ -124,6 +132,7 @@ def get_vis_dict(result_box, result_mask, img_name, cls_names, vis_thresh=0.5):
             box_for_img.append(det_for_img[keep])
             mask_for_img.append(seg_for_img[keep][0])
             cls_for_img.append(cls_ind + 1)
+
     res_dict = {'image_name': img_name,
                 'cls_name': cls_for_img,
                 'boxes': box_for_img,
@@ -154,23 +163,19 @@ if __name__ == '__main__':
         if im_name == 'output' or im_name == 'results':
             continue
 
-        print 'Processing {}/{}'.format(demo_dir, im_name)
+        print('Processing {}/{}'.format(demo_dir, im_name))
         gt_image = os.path.join(demo_dir, im_name)
         im = cv2.imread(gt_image)
         start = time.time()
         boxes, masks, seg_scores = im_detect(im, net)
         end = time.time()
-        print 'forward time %f' % (end-start)
+        print('forward time %f' % (end-start))
         result_mask, result_box = gpu_mask_voting(masks, boxes, seg_scores, len(CLASSES) + 1,
                                                   100, im.shape[1], im.shape[0])
         pred_dict = get_vis_dict(result_box, result_mask, 'data/demo/' + im_name, CLASSES)
 
         img_width = im.shape[1]
         img_height = im.shape[0]
-
-        masks = pred_dict['masks']
-        print(len(masks))
-        print(masks[0].shape)
 
         inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
         color_map = _get_voc_color_map()
@@ -181,6 +186,34 @@ if __name__ == '__main__':
                 cls_out_img[i][j] = color_map[cls_img[i][j]][::-1]
         cv2.imwrite(target_cls_file, cls_out_img)
 
+        if args.interactive:
+            # This section just plots some things for demonstration purposes.
+            print("Getting masks returned by 'im_detect'...")
+            print(len(masks))
+            print(masks[0].shape)
+            pmasks = pred_dict['masks']
+            if len(pmasks) > 0:
+                print("Getting processed masks:")
+                print(len(pmasks))
+                print(pmasks[0].shape)
+                plt.subplot(2, 2, 1)
+                plt.imshow(pmasks[0])
+
+                plt.subplot(2, 2, 2)
+                plt.imshow(pmasks[0] > 0.5)
+
+                plt.subplot(2, 2, 3)
+                m0 = pmasks[0]
+                box = pred_dict['boxes'][0].astype(int)
+                m0_res = cv2.resize(m0.astype(np.float32), (box[2] - box[0] + 1, box[3] - box[1] + 1))
+                plt.imshow(m0_res)
+
+                plt.subplot(2, 2, 4)
+                plt.imshow(m0_res > cfg.BINARIZE_THRESH)
+
+                plt.show()
+
+        print("Starting image mergification...")
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
         background = background.convert('RGBA')
@@ -192,6 +225,7 @@ if __name__ == '__main__':
 
         im = im[:, :, (2, 1, 0)]
 
+        print("Starting figure generation...")
         # A few tweaks to make our resulting plots as tight as possible.
         fig = plt.figure()
         dpi = fig.get_dpi()
@@ -205,7 +239,7 @@ if __name__ == '__main__':
         for i in xrange(len(classes)):
             score = pred_dict['boxes'][i][-1]
             bbox = pred_dict['boxes'][i][:4]
-            print "Bounding box:", bbox
+            print("Bounding box:", bbox)
             cls_ind = classes[i] - 1
             ax.text(bbox[0], bbox[1] - 8,
                 '{:s} {:.4f}'.format(CLASSES[cls_ind], score),
@@ -215,7 +249,8 @@ if __name__ == '__main__':
         # plt.axis('off')
         # plt.tight_layout()
         plt.draw()
-        plt.show()
+        if args.interactive:
+            plt.show()
         fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.png'))
 
         # os.remove(superimpose_name)
