@@ -17,6 +17,10 @@ privileged. The script is tailored for users of ETH Zurich's Euryale
 mini-cluster (using slurm and Linux modules), but it can easily be tweaked to
 work on arbitrary systems.
 
+Moreover, this fork's Caffe is more up-to-date than the original's, allowing it
+to work with cuDNN 5, leading to improved performance (at least in terms of
+inference speed, reaching about 170ms for a 1242x375 image).
+
 
 ### Introduction
 
