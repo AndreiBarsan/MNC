@@ -213,7 +213,6 @@ if __name__ == '__main__':
 
                 plt.show()
 
-        print("Starting image mergification...")
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
         background = background.convert('RGBA')
