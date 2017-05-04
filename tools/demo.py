@@ -9,9 +9,11 @@
 
 from __future__ import print_function
 
+# TODO(andrei): Is there a way to configure this automatically using a command
+# line argument or something?
 # Make sure plotting works without X.
-# import matplotlib as mpl
-# mpl.use('Agg')
+import matplotlib as mpl
+mpl.use('Agg')
 
 # Standard module
 import os
@@ -48,7 +50,7 @@ def parse_args():
     parser.add_argument('--cpu', dest='cpu_mode',
                         help='Use CPU mode (overrides --gpu)',
                         action='store_true')
-    parser.add_argument('--interactive', dest='interactive',
+    parser.add_argument('--interactive', dest='interactive', default=False,
                         action='store_true',
                         help="Whether to show the results to the user as they're created.")
     parser.add_argument('--def', dest='prototxt',
@@ -157,6 +159,7 @@ if __name__ == '__main__':
     if not os.path.exists(demo_result_dir):
         os.mkdir(demo_result_dir)
 
+    fig = plt.figure()
     for im_name in os.listdir(demo_dir):
         if im_name == 'output' or im_name == 'results':
             continue
@@ -211,6 +214,7 @@ if __name__ == '__main__':
 
                 plt.show()
 
+        print("Starting image mergification...")
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
         background = background.convert('RGBA')
@@ -222,8 +226,8 @@ if __name__ == '__main__':
 
         im = im[:, :, (2, 1, 0)]
 
+        print("Starting figure generation...")
         # A few tweaks to make our resulting plots as tight as possible.
-        fig = plt.figure()
         dpi = fig.get_dpi()
         fig.set_size_inches(img_width / dpi, img_height / dpi)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -248,6 +252,7 @@ if __name__ == '__main__':
         if args.interactive:
             plt.show()
         fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.png'))
+        fig.clf()
 
         # os.remove(superimpose_name)
         # os.remove(target_cls_file)
