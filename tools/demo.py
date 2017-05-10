@@ -159,6 +159,25 @@ def get_vis_dict(result_box, result_mask, img_name, cls_names, vis_thresh=0.5):
                 'masks': mask_for_img}
     return res_dict
 
+
+def dump_instance_data(dir, im_name, instances):
+    """Writes per-frame, per-instance data to the directory.
+
+    For every detection in every frame, dumps a metadata file, and a numpy text
+    file with the mask (which is the exact size of the bounding box).
+    """
+
+    for instance_idx, instance in enumerate(instances):
+        # bbox[0:3], mask[np.array], score[float], cls_num[str]
+        fname_meta = "{}.{:04d}.result.txt".format(im_name, instance_idx)
+        fpath_meta = os.path.join(dir, fname_meta)
+        with open(fpath_meta, 'w') as f:
+            f.write("{bbox}, {score}, {cls_num}\n".format(**instance))
+
+        fname_mask = "{}.{:04d}.mask.txt".format(im_name, instance_idx)
+        fpath_mask = os.path.join(dir, fname_mask)
+        np.savetxt(fpath_mask, instance['mask'])
+
 if __name__ == '__main__':
     args = parse_args()
     test_prototxt = args.prototxt
@@ -224,15 +243,17 @@ if __name__ == '__main__':
 
         # TODO(andrei): Correctly handle bounding box repositioning based on
         # the initial resize.
-        inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
-        print('Imge gen from pred OK.')
+        inst_img, cls_img, _ = _convert_pred_to_image(img_width, img_height, pred_dict)
+
         color_map = _get_voc_color_map()
         target_cls_file = os.path.join(demo_result_dir, 'cls_' + im_name)
         cls_out_img = np.zeros((img_height, img_width, 3))
         for i in xrange(img_height):
             for j in xrange(img_width):
                 cls_out_img[i][j] = color_map[cls_img[i][j]][::-1]
+
         cv2.imwrite(target_cls_file, cls_out_img)
+        dump_instance_data(demo_result_dir, img_name, instances)
 
         if args.interactive:
             # This section just plots some things for demonstration purposes.
@@ -274,7 +295,7 @@ if __name__ == '__main__':
             mask = mask.resize((im.shape[1], im.shape[0]))
 
         superimpose_image = Image.blend(background, mask, 0.8)
-        superimpose_name = os.path.join(demo_result_dir, 'final_' + im_name)
+        superimpose_name = os.path.join(demo_result_dir, 'final_' + im_name + '.jpg')
         superimpose_image.save(superimpose_name, 'JPEG')
         im = cv2.imread(superimpose_name)
 
@@ -289,11 +310,11 @@ if __name__ == '__main__':
         fig.add_axes(ax)
 
         ax.imshow(im)
+        # Annotate each detection with the class name and class probability
         classes = pred_dict['cls_name']
         for i in xrange(len(classes)):
             score = pred_dict['boxes'][i][-1]
             bbox = pred_dict['boxes'][i][:4]
-            print("Bounding box:", bbox)
             cls_ind = classes[i] - 1
             ax.text(bbox[0], bbox[1] - 8,
                 '{:s} {:.4f}'.format(CLASSES[cls_ind], score),

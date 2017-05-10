@@ -98,10 +98,14 @@ def _prepare_dict(img_names, cls_names, cache_dir, vis_thresh=0.5):
     return res_list
 
 
-def _convert_pred_to_image(img_width, img_height, pred_dict):
+def _convert_pred_to_image(img_width, img_height, pred_dict, **kw):
     num_inst = len(pred_dict['boxes'])
     inst_img = np.zeros((img_height, img_width))
     cls_img = np.zeros((img_height, img_width))
+
+    # Collect data about each instance present in this image in a single list.
+    instances = []
+
     for i in xrange(num_inst):
         box = np.round(pred_dict['boxes'][i]).astype(int)
         mask = pred_dict['masks'][i]
@@ -125,9 +129,18 @@ def _convert_pred_to_image(img_width, img_height, pred_dict):
         cls_img[box[1]-1:box[1]+1, box[0]:box[2]+1] = 150
         cls_img[box[3]-1:box[3]+1, box[0]:box[2]+1] = 150
 
+        instances.append({
+            'bbox': box,
+            # Only contains the mask inside the bounding box. There's no point
+            # in saving a full-sized mask for every instance.
+            'mask': mask,
+            'cls_num': cls_num,
+            'score': pred_dict['boxes'][i][-1]
+        })
+
     inst_img = inst_img.astype(int)
     cls_img = cls_img.astype(int)
-    return inst_img, cls_img
+    return inst_img, cls_img, instances
 
 
 def _get_voc_color_map(n=256):
