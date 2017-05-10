@@ -69,6 +69,9 @@ def parse_args():
                         default='./data/demo/output', type=str)
 
     # Support doing lower-resolution segmentation for performance reasons.
+    # Note: in the vanilla case, the actual input size does NOT matter, since
+    # the network operates in a (nearly) resolution-agnostic manner, doing its
+    # own rescaling as part of the preprocessing!
     parser.add_argument('--inference-width', dest='inference_width',
                         help="Width to which ALL input images are resized "
                         "before being fed into the network. The output "
@@ -176,17 +179,19 @@ if __name__ == '__main__':
     if not os.path.exists(demo_result_dir):
         os.mkdir(demo_result_dir)
 
-    do_resize = (args.inference_width == -1 or args.inference_height == -1)
+    fig = plt.figure()
+    do_resize = (args.inference_width != -1 and args.inference_height != -1)
     if do_resize:
-        print("Will NOT perform resizing of frames prior to feeding them into "
-              "the NN.")
-    else:
         print("Will resize input images to {}x{} before feeding them into the "
               "NN, and then resize the segmentation result to the original "
-              "dimensions.")
+              "dimensions.".format(args.inference_width, args.inference_height))
+    else:
+        print("Will NOT perform resizing of frames prior to feeding them into "
+              "the NN.")
 
     for im_name in os.listdir(demo_dir):
-        if im_name == 'output' or im_name == 'results':
+        if not (im_name.endswith('jpg') or im_name.endswith('png') or
+                im_name.endswith('jpeg')):
             continue
 
         print('Processing {}/{}'.format(demo_dir, im_name))
@@ -194,7 +199,11 @@ if __name__ == '__main__':
         im = cv2.imread(gt_image)
 
         if do_resize:
+            print("Resizing image to {}x{}.".format(args.inference_width,
+                                                    args.inference_height))
             net_input = cv2.resize(im, (args.inference_width, args.inference_height))
+            # print(net_input.shape)
+            # print(im.shape)
         else:
             net_input = im
 
@@ -203,15 +212,20 @@ if __name__ == '__main__':
         end = time.time()
         print('forward time %f' % (end-start))
         result_mask, result_box = gpu_mask_voting(masks, boxes, seg_scores, len(CLASSES) + 1,
-                                                  100, im.shape[1], im.shape[0])
+                                                  100, net_input.shape[1], net_input.shape[0])
+        print('GPU mask voting OK')
         pred_dict = get_vis_dict(result_box, result_mask, 'data/demo/' + im_name, CLASSES)
 
         # TODO(andrei): If resizing image, blow the result back up.
+        img_width = net_input.shape[1]
+        img_height = net_input.shape[0]
+        # img_width = im.shape[1]
+        # img_height = im.shape[0]
 
-        img_width = im.shape[1]
-        img_height = im.shape[0]
-
+        # TODO(andrei): Correctly handle bounding box repositioning based on
+        # the initial resize.
         inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
+        print('Imge gen from pred OK.')
         color_map = _get_voc_color_map()
         target_cls_file = os.path.join(demo_result_dir, 'cls_' + im_name)
         cls_out_img = np.zeros((img_height, img_width, 3))
@@ -247,10 +261,18 @@ if __name__ == '__main__':
 
                 plt.show()
 
+        # TODO(andrei): From here on, we should work with the blown-up
+        # segmentation result, if downscaling was enabled. Make sure you
+        # rescale the individual masks correctly!
+
         background = Image.open(gt_image)
         mask = Image.open(target_cls_file)
         background = background.convert('RGBA')
         mask = mask.convert('RGBA')
+
+        if do_resize:
+            mask = mask.resize((im.shape[1], im.shape[0]))
+
         superimpose_image = Image.blend(background, mask, 0.8)
         superimpose_name = os.path.join(demo_result_dir, 'final_' + im_name)
         superimpose_image.save(superimpose_name, 'JPEG')
@@ -260,7 +282,6 @@ if __name__ == '__main__':
 
         print("Starting figure generation...")
         # A few tweaks to make our resulting plots as tight as possible.
-        fig = plt.figure()
         dpi = fig.get_dpi()
         fig.set_size_inches(img_width / dpi, img_height / dpi)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -284,7 +305,10 @@ if __name__ == '__main__':
         plt.draw()
         if args.interactive:
             plt.show()
-        fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.png'))
+
+        # TODO(andrei): Make sure the extension and format used coinicide and are sane.
+        fig.savefig(os.path.join(demo_result_dir, im_name[:-4] + '.jpg'))
+        fig.clf()
 
         # os.remove(superimpose_name)
         # os.remove(target_cls_file)
