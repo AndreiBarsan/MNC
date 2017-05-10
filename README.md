@@ -13,13 +13,14 @@ batch process data in a particular folder.
 
 It also comes with an [associated install script](https://github.com/AndreiBarsan/caffe-setup)
 which can be used to set this code up on a machine, without requiring root
-privileged. The script is tailored for users of ETH Zurich's Euryale
+privileges. The script is tailored for users of ETH Zurich's Euryale
 mini-cluster (using slurm and Linux modules), but it can easily be tweaked to
 work on arbitrary systems.
 
 Moreover, this fork's Caffe is more up-to-date than the original's, allowing it
 to work with cuDNN 5, leading to improved performance (at least in terms of
-inference speed, reaching about 170ms for a 1242x375 image).
+inference speed, reaching about 170ms for a 1242x375 image, as compared to
+the 300ms mentioned in the original paper).
 
 
 ### Introduction
