@@ -176,7 +176,9 @@ def dump_instance_data(dir, im_name, instances):
 
         fname_mask = "{}.{:04d}.mask.txt".format(im_name, instance_idx)
         fpath_mask = os.path.join(dir, fname_mask)
-        np.savetxt(fpath_mask, instance['mask'])
+        # TODO(andrei): Consider compressing this; you may be able to save
+        # a TON of space.
+        np.savetxt(fpath_mask, instance['mask'].astype(np.bool_))
 
 if __name__ == '__main__':
     args = parse_args()
@@ -243,7 +245,7 @@ if __name__ == '__main__':
 
         # TODO(andrei): Correctly handle bounding box repositioning based on
         # the initial resize.
-        inst_img, cls_img, _ = _convert_pred_to_image(img_width, img_height, pred_dict)
+        inst_img, cls_img, instances = _convert_pred_to_image(img_width, img_height, pred_dict)
 
         color_map = _get_voc_color_map()
         target_cls_file = os.path.join(demo_result_dir, 'cls_' + im_name)
@@ -253,7 +255,7 @@ if __name__ == '__main__':
                 cls_out_img[i][j] = color_map[cls_img[i][j]][::-1]
 
         cv2.imwrite(target_cls_file, cls_out_img)
-        dump_instance_data(demo_result_dir, img_name, instances)
+        dump_instance_data(demo_result_dir, im_name, instances)
 
         if args.interactive:
             # This section just plots some things for demonstration purposes.

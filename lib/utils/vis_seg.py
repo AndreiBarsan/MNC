@@ -41,7 +41,7 @@ def vis_seg(img_names, cls_names, output_dir, gt_dir):
         img_width = img_data.shape[1]
         img_height = img_data.shape[0]
         pred_dict = res_list[img_ind]
-        inst_img, cls_img = _convert_pred_to_image(img_width, img_height, pred_dict)
+        inst_img, cls_img, _ = _convert_pred_to_image(img_width, img_height, pred_dict)
         color_map = _get_voc_color_map()
         inst_out_img = np.zeros((img_height, img_width, 3))
         cls_out_img = np.zeros((img_height, img_width, 3))
