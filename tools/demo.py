@@ -296,7 +296,7 @@ if __name__ == '__main__':
         if do_resize:
             mask = mask.resize((im.shape[1], im.shape[0]))
 
-        superimpose_image = Image.blend(background, mask, 0.8)
+        superimpose_image = Image.blend(background, mask, 0.8).convert('RGB')
         superimpose_name = os.path.join(demo_result_dir, 'final_' + im_name + '.jpg')
         superimpose_image.save(superimpose_name, 'JPEG')
         im = cv2.imread(superimpose_name)
